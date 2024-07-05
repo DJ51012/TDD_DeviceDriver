@@ -16,5 +16,6 @@ public:
     void write(long address, int data);
 
 protected:
+    const int CLEAN_DATA = 0xFF;
     FlashMemoryDevice* m_hardware;
 };

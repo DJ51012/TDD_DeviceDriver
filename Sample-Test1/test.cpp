@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 #include "../TDD_DeviceDriver/DeviceDriver.cpp"
+#include "../TDD_DeviceDriver/Application.cpp"
 
 using namespace testing;
 
@@ -11,20 +12,28 @@ public:
 	MOCK_METHOD(void, write, (long address, unsigned char data), (override));
 };
 
-
-TEST(FlashMock, Read5Times) {
+class DeviceDriverFixture : public testing::Test {
+public:
 	MockFlashMemoryDevice mockFlash;
-	EXPECT_CALL(mockFlash, read)
+
+	const long TEST_ADDRESS = 0x1234;
+	const int WRITE_VALUE = 0xABCD;
+private:
+
+};
+
+
+TEST_F(DeviceDriverFixture, Read5Times) {
+	EXPECT_CALL(mockFlash, read(TEST_ADDRESS))
 		.Times(5)
 		.WillRepeatedly(Return(1));
 
 	DeviceDriver deviceDriver(&mockFlash);
-	EXPECT_THAT(deviceDriver.read(0xF), Eq(1));
+	EXPECT_THAT(deviceDriver.read(TEST_ADDRESS), Eq(1));
 }
 
-TEST(FlashMock, ReadException) {
-	MockFlashMemoryDevice mockFlash;
-	EXPECT_CALL(mockFlash, read)
+TEST_F(DeviceDriverFixture, ReadException) {
+	EXPECT_CALL(mockFlash, read(TEST_ADDRESS))
 		.Times(3)
 		.WillOnce(Return(1))
 		.WillOnce(Return(1))
@@ -32,28 +41,64 @@ TEST(FlashMock, ReadException) {
 		.WillRepeatedly(Return(1));
 
 	DeviceDriver deviceDriver(&mockFlash);
-	EXPECT_THROW({ deviceDriver.read(0xF); }, ReadFailException);
+	EXPECT_THROW({ deviceDriver.read(TEST_ADDRESS); }, ReadFailException);
 }
 
-TEST(FlashMock, WriteSuccess) {
-	MockFlashMemoryDevice mockFlash;
-	EXPECT_CALL(mockFlash, read)
+TEST_F(DeviceDriverFixture, WriteSuccess) {
+	EXPECT_CALL(mockFlash, read(TEST_ADDRESS))
 		.Times(1)
 		.WillRepeatedly(Return(0xFF));
 
-	EXPECT_CALL(mockFlash, write)
+	EXPECT_CALL(mockFlash, write(TEST_ADDRESS, WRITE_VALUE))
 		.Times(1);
 
 	DeviceDriver deviceDriver(&mockFlash);
-	deviceDriver.write(0xF, 2);
+	deviceDriver.write(TEST_ADDRESS, WRITE_VALUE);
 }
 
-TEST(FlashMock, WriteException) {
-	MockFlashMemoryDevice mockFlash;
-	EXPECT_CALL(mockFlash, read)
+TEST_F(DeviceDriverFixture, WriteException) {
+	EXPECT_CALL(mockFlash, read(TEST_ADDRESS))
 		.Times(1)
 		.WillRepeatedly(Return(0x1));
 
 	DeviceDriver deviceDriver(&mockFlash);
-	EXPECT_THROW({ deviceDriver.write(0xF, 2); }, WriteFailException);
+	EXPECT_THROW({ deviceDriver.write(TEST_ADDRESS, WRITE_VALUE); }, WriteFailException);
+}
+
+
+// Application
+TEST_F(DeviceDriverFixture, AppRead) {
+	EXPECT_CALL(mockFlash, read(0))
+		.Times(5)
+		.WillRepeatedly(Return(1));
+	EXPECT_CALL(mockFlash, read(1))
+		.Times(5)
+		.WillRepeatedly(Return(2));
+	EXPECT_CALL(mockFlash, read(2))
+		.Times(5)
+		.WillRepeatedly(Return(3));
+	EXPECT_CALL(mockFlash, read(3))
+		.Times(5)
+		.WillRepeatedly(Return(4));
+	EXPECT_CALL(mockFlash, read(4))
+		.Times(5)
+		.WillRepeatedly(Return(5));
+
+	DeviceDriver deviceDriver(&mockFlash);
+	Application app(&deviceDriver);
+	app.ReadAndPrint(0x0, 0x4);
+}
+
+TEST_F(DeviceDriverFixture, AppWrite) {
+	EXPECT_CALL(mockFlash, read)
+		.WillRepeatedly(Return(0xFF));
+	EXPECT_CALL(mockFlash, write(0, WRITE_VALUE));
+	EXPECT_CALL(mockFlash, write(1, WRITE_VALUE));
+	EXPECT_CALL(mockFlash, write(2, WRITE_VALUE));
+	EXPECT_CALL(mockFlash, write(3, WRITE_VALUE));
+	EXPECT_CALL(mockFlash, write(4, WRITE_VALUE));
+
+	DeviceDriver deviceDriver(&mockFlash);
+	Application app(&deviceDriver);
+	app.WriteAll(WRITE_VALUE);
 }
